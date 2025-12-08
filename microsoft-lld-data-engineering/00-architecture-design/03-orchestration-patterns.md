@@ -13,6 +13,10 @@ In a distributed data system, the Orchestrator has 4 critical jobs:
 3.  **State Management**: "Did yesterday's run fail? Should I retry?"
 4.  **Backfilling**: "Re-run the last 30 days because logic changed."
 
+![A Resilient DAG showing Control Plane vs Data Plane separation, Failure Retries, and Dead Letter Queue routing](c:/Users/sivan/.gemini/antigravity/brain/575ded8b-98f8-4293-b7e2-54d5e2b0ad5f/orchestration_resilient_dag.png)
+
+> **Staff Level Insight**: Notice the separation of concerns. The **Control Plane** (Airflow) manages the logic and state, while the **Data Plane** (Spark) handles the heavy lifting. The **DLQ** ensures that a single bad record doesn't block the entire pipelin—a critical pattern for SLA guarantees.
+
 ### Architecture Decision: Pure Orchestrator vs Hybrid
 
 | Type | Example | Role | Trade-off |
@@ -111,24 +115,41 @@ When DAG fails on 1 bad record out of 1 Million:
 Even if using ADF/Airflow, the **Databricks Workflow** entity is the unit of work.
 
 ```mermaid
-graph TB
-    subgraph "Orchestrator (ADF/Airflow)"
-        Trigger[Daily Trigger] --> API[Run Submit API]
-    end
-
-    subgraph "Databricks Job Cluster"
-        API --> Task1[Notebook: Ingest]
-        Task1 --> Task2[Notebook: Transform]
-        Task2 --> Task3[Notebook: Curry/Agg]
+graph TD
+    %% Staff Level Insight: Separation of Loop (Control) vs Heavy Lifting (Data)
+    
+    subgraph Control_Plane ["Control Plane (Airflow / ADF)"]
+        style Control_Plane fill:#f9f9f9,stroke:#333,stroke-width:2px
+        Start([Start Daily Job]) --> Sensor{File Arrived?}
+        Sensor -- "Wait (Sensor)" --> Sensor
+        Sensor -- "Yes" --> Submit[Submit Spark Job]
         
-        Task1 -.-> |"dbutils.jobs.taskValues.set()"| Task2
-        Task2 -.-> |"dbutils.jobs.taskValues.get()"| Logic
+        Submit --> Monitor{Poll Status}
+        Monitor -- "Running..." --> Monitor
+        Monitor -- "Success" --> Success([End Success])
+        
+        Monitor -- "Failure" --> Retry{Retry Count < 3?}
+        Retry -- "Yes (Backoff)" --> Submit
+        Retry -- "No" --> Alert[🔥 PagerDuty Alert]
     end
 
-    subgraph "State Storage"
-        Task1 --> Delta[(Bronze Delta)]
-        Task2 --> Delta[(Silver Delta)]
+    subgraph Data_Plane ["Data Plane (Databricks Cluster)"]
+        style Data_Plane fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+        direction TB
+        Read[Read Raw Files] --> Valid{Schema Check}
+        
+        %% Resilience Pattern: Handling Bad Data without failing the job
+        Valid -- "Pass" --> Transform[Transform Logic]
+        Valid -- "Fail" --> DLQ[("⚠️ Write to DLQ (JSON)")]
+        
+        Transform --> Write[Atomic Write to Delta]
     end
+
+    %% Wiring Control to Data
+    Submit -.-> |"Async Trigger API"| Read
+    Write -.-> |"Return Exit Code 0"| Monitor
+    Alert -.-> |"Return Exit Code 1"| Monitor
+```
 ```
 
 **Why Job Clusters?**

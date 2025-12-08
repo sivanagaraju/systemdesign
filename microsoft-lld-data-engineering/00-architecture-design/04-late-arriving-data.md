@@ -10,25 +10,45 @@
 
 ## 🔴 The Problem
 
+```mermaid
+gantt
+    title Watermark Trade-off: Latency vs Completeness
+    dateFormat  HH:mm
+    axisFormat  %H:%M
+    
+    section Timelines
+    Wall Clock (Processing Time) :active, current, 10:00, 30m
+    Event Time (Data Arrival)    :crit, data, 10:00, 30m
+    
+    section Events
+    On-Time Event (10:05)       :done,    event1, 10:05, 1m
+    Late Buffered Event (10:02) :active,  event2, 10:15, 1m
+    Dropped Event (09:55)       :crit,    event3, 10:20, 1m
+    
+    section Watermark
+    Watermark (Delay 10m)       :milestone, 10:10, 0m
 ```
-Timeline:
-─────────────────────────────────────────────────────────────────►
 
-  10:00 AM                    10:30 AM                  11:00 AM
-     │                           │                         │
-     ▼                           ▼                         ▼
-┌──────────┐              ┌──────────┐              ┌──────────┐
-│  Orders  │              │ Products │              │  Join    │
-│  Arrived │              │ Arrived  │              │  Runs    │
-│          │              │          │              │          │
-│ order_id │              │product_id│              │   ???    │
-│product_id│              │   name   │              │          │
-└──────────┘              └──────────┘              └──────────┘
-
-Order file has product_id = 12345
-But Products file hasn't arrived yet!
-
-If we join now → Order is DROPPED or has NULL product name!
+```mermaid
+graph LR
+    subgraph Stream_Processing ["Stream Processing Window"]
+        direction TB
+        Now[("Current Processing Time: 10:15")]
+        WM[("Watermark (T-10m): 10:05")]
+        
+        style Now fill:#e1f5fe
+        style WM fill:#ffebee,stroke:#c62828
+        
+        Now -.-> WM
+    end
+    
+    subgraph Incoming_Events ["Incoming Events Queue"]
+        E1[Event Time: 10:14] --> |"Ahead of Watermark"| Buffer[State Store Buffer]
+        E2[Event Time: 10:06] --> |"Ahead of Watermark"| Buffer
+        E3[Event Time: 10:04] --> |"Behind Watermark"| Drop[🗑️ Dropped / Ignored]
+    end
+    
+    Buffer --> Agg[Result Table]
 ```
 
 ---

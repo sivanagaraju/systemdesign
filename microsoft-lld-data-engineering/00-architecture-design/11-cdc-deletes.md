@@ -23,12 +23,35 @@ Data Lake Options:
 
 ## 🏗️ CDC Architecture with Deletes
 
+```mermaid
+flowchart TD
+    subgraph Source ["Source System"]
+        DB[(Database)] --> |"Log Scanner"| CDC_Stream[CDC Feed]
+        Note_S["Events: INSERT, UPDATE, DELETE"] -.-> CDC_Stream
+    end
+    
+    subgraph Processing ["Delta Merge Process"]
+        CDC_Stream --> Match{Match Key?}
+        Target[(Silver Table)] --> Match
+        
+        Match -- "Match + Op='D'" --> SoftDel[Update: is_deleted=true]
+        Match -- "Match + Op='U'" --> Update[Update: Values]
+        Match -- "No Match + Op='I'" --> Insert[Insert: New Row]
+    end
+    
+    subgraph Consumption ["Downstream Consumption"]
+        SoftDel --> View
+        Update --> View
+        Insert --> View
+        
+        View[("Silver View")] --> Filter{Query Filter}
+        Filter --> |"WHERE is_deleted=false"| Active[Active Records]
+        Filter --> |"WHERE is_deleted=true"| History[Deleted History]
+    end
+    
+    style SoftDel fill:#ffebee,stroke:#b71c1c
+    style Insert fill:#e8f5e9,stroke:#1b5e20
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    CDC DELETE HANDLING ARCHITECTURE                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  SOURCE DATABASE                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────────┐│
 │  │  Transaction Log (CDC enabled)                                           ││
 │  │                                                                          ││

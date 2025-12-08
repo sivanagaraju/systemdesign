@@ -1,5 +1,7 @@
 # Lambda Architecture - Comprehensive Interview Guide
 
+![Lambda Architecture Diagram](./images/lambda_architecture.png)
+
 > **Created by Nathan Marz (LinkedIn, Twitter) in 2011** for handling massive-scale data processing with combined batch and real-time capabilities.
 
 This document covers everything you need to answer Lambda Architecture questions in depth.
@@ -628,6 +630,8 @@ query.awaitTermination()
 
 #### Why Is Speed Layer "Temporary"?
 
+![Lambda Batch Gap](./images/lambda_batch_gap.png)
+
 | Aspect | Speed Layer | Batch Layer |
 |--------|-------------|-------------|
 | **Accuracy** | May be approximate | 100% accurate |
@@ -695,7 +699,51 @@ graph TB
     API --> ML[ML Applications]
 ```
 
-#### The Merge Logic
+## 🔬 Deep Dive: The Merge Logic (Serving Layer)
+
+![Serving Layer Merge Logic](./images/lambda_serving_merge.png)
+
+The "Secret Sauce" of Lambda Architecture is this query logic.
+
+**Theorem**: `Query(All Data) = Query(Batch View) + Query(Speed View)`
+
+### The Challenge: Double Counting
+A major problem is that the **Batch Layer** takes time to run.
+*   It's 10:00 AM.
+*   Batch Job started at 2:00 AM (processing data up to midnight).
+*   Speed Layer has data from midnight to 10:00 AM.
+*   *But wait!* The Speed Layer *also* has data from yesterday (because it's a stream).
+
+**If we just `UNION` them, we get yesterday's data twice!**
+
+### The Solution: Filter on Query Time
+We must be precise about the "Handoff Time".
+
+```sql
+-- Pseudo-SQL for Lambda Merge Query
+
+SELECT sum(sales) as total_sales
+FROM (
+    -- 1. Batch View (Official History up to Last Night)
+    SELECT sales
+    FROM batch_sales_table
+    WHERE date < '2023-10-27' -- The "Batch Cutoff"
+
+    UNION ALL
+
+    -- 2. Speed View (Real-time Correction since Last Night)
+    SELECT sales
+    FROM speed_sales_redis_view
+    WHERE event_time >= '2023-10-27' -- Only NEW data
+)
+```
+
+### 👨‍💻 Implementation Tips
+1.  **Batch Write**: When Batch finishes writing partition `2023-10-26`, it updates a metadata flag: `LATEST_BATCH_DATE = '2023-10-26'`.
+2.  **Serving App**: Reads `LATEST_BATCH_DATE`.
+    *   Queries Batch for `date <= LATEST_BATCH_DATE`.
+    *   Queries Speed for `date > LATEST_BATCH_DATE`.
+3.  **Result**: 100% Accuracy, 0% Duplication.
 
 ```sql
 -- Serving Layer Query
@@ -899,6 +947,8 @@ Speed layer may have slightly different results than batch will compute later. U
 ## Lambda vs Kappa vs Delta Architecture
 
 ### Comparison
+
+![Complexity Cost Graph](./images/complexity_cost_graph.png)
 
 ```mermaid
 graph TB
