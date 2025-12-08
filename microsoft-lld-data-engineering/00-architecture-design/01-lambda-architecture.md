@@ -1,6 +1,7 @@
 # Lambda Architecture - Comprehensive Interview Guide
 
 ![Lambda Architecture Diagram](./images/lambda_architecture.png)
+![Software Architecture Styles](./images/lambda_architecture_diagram.png)
 
 > **Created by Nathan Marz (LinkedIn, Twitter) in 2011** for handling massive-scale data processing with combined batch and real-time capabilities.
 
