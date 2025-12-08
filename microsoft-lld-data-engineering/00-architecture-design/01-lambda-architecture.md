@@ -1003,6 +1003,29 @@ batch_df.write.format("delta") \
 
 ---
 
+---
+
+## ❓ Deep Dive: The "Petabyte Question"
+
+You asked: *"If we have petabytes of data, we MUST use Lambda, right?"*
+
+**Answer: Not anymore.**
+
+### 🏛️ History Lesson (Why people say "Yes")
+*   **2011-2016** (Hadoop Era): Yes. Stream processing frameworks (Storm/early Spark Streaming) were unstable or too expensive to hold petabytes of state. You **needed** the Batch Layer (Hadoop) to hold the petabytes cheaply.
+*   **2020+** (Modern Era): **No**.
+    *   **Kappa with Tiered Storage**: Kafka can offload PB to S3.
+    *   **Delta Architecture**: You store PB in Delta Lake (S3). You can process it cleanly with **one** Unified engine (Spark).
+
+### 🧪 When "Petabyte" still means "Lambda"
+The only time you **MUST** consider Lambda for Petabytes today is:
+1.  **Algorithmic Complexity**: If your "Batch" logic is so complex (e.g., re-training a massive Deep Learning model on PB of data) that it physically *cannot* be run as a stream.
+2.  **Cost**: If keeping a Streaming Cluster running 24/7 with enough RAM to handle PB-scale state is `10x` more expensive than spinning up a Batch cluster for 4 hours.
+
+**Verdict**: Focus on **Algorithm Complexity** and **Latency** first, not just Data Volume.
+
+---
+
 ## Interview Questions - Complete Q&A
 
 ### Conceptual Questions
