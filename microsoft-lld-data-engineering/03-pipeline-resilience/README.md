@@ -14,6 +14,7 @@ Microsoft often asks: *"Your pipeline fails halfway through. How do you design i
 | [02-checkpointing-recovery.md](./02-checkpointing-recovery.md) | Checkpoint Strategies | Resume vs restart, structured streaming |
 | [03-dead-letter-queues.md](./03-dead-letter-queues.md) | Error Handling | DLQ design, quarantine tables |
 | [04-azure-data-factory-deep-dive.md](./04-azure-data-factory-deep-dive.md) | ADF Internals | Integration runtimes, retry policies |
+| [05-resilience-architect-guide.md](./05-resilience-architect-guide.md) | **FAANG Master Guide** | 10-point deep dive, DOCTOR mnemonic |
 
 ---
 

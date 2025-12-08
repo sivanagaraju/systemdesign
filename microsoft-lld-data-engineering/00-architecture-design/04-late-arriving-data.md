@@ -1,5 +1,5 @@
 # Late-Arriving Data Handling
-
+![alt text](./images/LateArrivingData.png)
 > **THE critical scenario** - Products not arrived, but Orders came
 
 ## The Core Question

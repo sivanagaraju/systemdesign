@@ -47,7 +47,10 @@ flowchart TD
     style Fail fill:#ffcdd2,stroke:#c62828
     style DLQ fill:#fff9c4,stroke:#fbc02d
     style Write fill:#c8e6c9,stroke:#2e7d32
-```│                                      │                                       │
+```
+
+```text
+│                                      │                                       │
 │                                      ▼                                       │
 │  SCHEMA REGISTRY (Governance)                                                │
 │  ┌─────────────────────────────────────────────────────────────────────────┐│
