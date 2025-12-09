@@ -204,6 +204,35 @@ Imagine 1000 users all call the API at the same time. The server fails.
 
 ---
 
+**📦 Batch Example: Spark Job Reading Files from S3**
+
+```python
+# Your Spark batch job reads 1000 Parquet files from S3
+# Sometimes S3 returns "503 SlowDown" when throttled
+
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=60)
+)
+def read_file_from_s3(file_path):
+    """
+    If S3 throttles us, wait and retry.
+    Attempt 1: Wait 2 seconds
+    Attempt 2: Wait 4 seconds
+    Attempt 3: Wait 8 seconds... up to 60 seconds max
+    """
+    return spark.read.parquet(file_path)
+
+# Usage in batch job
+for file_path in list_of_1000_files:
+    df = read_file_from_s3(file_path)  # Retries automatically!
+    process_and_write(df)
+```
+
+---
+
 ### Pattern B: Dead Letter Queue (DLQ)
 
 **What Problem Does This Solve?**
@@ -262,6 +291,62 @@ The key is: **Bad records go here, not into your main output.**
 **When to Use This Pattern:**
 *   ✅ Any streaming pipeline (Kafka, Event Hubs)
 *   ✅ Batch pipelines where one bad file shouldn't stop 10,000 good files
+
+---
+
+**📦 Batch Example: Processing 10,000 Files with Bad Files Quarantined**
+
+```
+Scenario: Your daily batch job processes 10,000 CSV files.
+
+File 1:    users_001.csv → Parse → ✅ Success! Write to Data Lake.
+File 2:    users_002.csv → Parse → ✅ Success! Write to Data Lake.
+File 3:    users_003.csv → Parse → ❌ Error! File is CORRUPT (truncated)
+        
+        ❌ BAD DESIGN: Crash entire job. 9,997 good files don't get processed.
+        
+        ✅ GOOD DESIGN: 
+           1. Move users_003.csv to /quarantine/bad_files/
+           2. Log the error with details
+           3. Continue to File 4...
+
+File 4:    users_004.csv → Parse → ✅ Success!
+...
+File 10000: users_10000.csv → Parse → ✅ Success!
+
+End of Job:
+        - 9,998 files processed successfully
+        - 2 files in /quarantine/bad_files/
+        - Alert sent: "2 files failed. Check quarantine folder."
+```
+
+**Spark Batch Code with badRecordsPath (Built-in DLQ):**
+
+```python
+# Spark has a BUILT-IN DLQ feature for batch jobs!
+df = spark.read \
+    .option("mode", "PERMISSIVE") \
+    .option("badRecordsPath", "/data/quarantine/bad_records/") \
+    .csv("/data/raw/users/*.csv")
+
+# Good records → df (continue processing)
+# Bad records → /data/quarantine/bad_records/ (for later investigation)
+```
+
+**Airflow DAG with DLQ Folder:**
+
+```python
+# In an Airflow batch pipeline
+def process_file(file_path):
+    try:
+        df = pd.read_csv(file_path)
+        transform_and_load(df)
+        move_file(file_path, "/processed/")
+    except Exception as e:
+        # DLQ: Move bad files to quarantine
+        move_file(file_path, "/quarantine/")
+        log_error(file_path, str(e))
+```
 
 ---
 
@@ -362,6 +447,80 @@ Job restarts.
 This is bad because:
 *   You waste time reprocessing.
 *   If your sink is NOT idempotent, you create **DUPLICATES**.
+
+---
+
+**📦 Batch Example: Processing Files with Checkpointing**
+
+```
+Scenario: You have 10,000 files to process. Each file takes 1 minute.
+Total time: ~7 hours.
+
+WITHOUT CHECKPOINTING:
+        Process file 1... 2... 3... ... 5000... (5 hours elapsed)
+        
+        💥 CRASH! (Cluster node fails)
+        
+        Job restarts. "I'll start from file 1."
+        Process file 1... 2... 3... (Waste 5 more hours!)
+
+WITH CHECKPOINTING:
+        Process file 1... 2... 3...
+        After every 100 files → Save checkpoint: 
+            {"last_processed_file": "users_0100.csv"}
+        
+        Process 4000... 4500... 5000...
+        Save checkpoint: {"last_processed_file": "users_5000.csv"}
+        
+        💥 CRASH!
+        
+        Job restarts. Read checkpoint: "I left off at file 5000."
+        Resume from file 5001. (Save 5 hours!)
+```
+
+**Airflow Checkpointing (Using XCom or External State):**
+
+```python
+# Airflow DAG with checkpointing using Variables
+from airflow.models import Variable
+
+def process_files_with_checkpoint():
+    # Read last checkpoint
+    last_processed = Variable.get("last_processed_file", default_var="")
+    
+    all_files = list_files("/data/raw/")
+    remaining = [f for f in all_files if f > last_processed]
+    
+    for file_path in remaining:
+        process_file(file_path)
+        
+        # Save checkpoint after each file (or every N files)
+        Variable.set("last_processed_file", file_path)
+```
+
+**Spark Batch Checkpointing (Track Progress in Delta Table):**
+
+```python
+# Store processing state in a Delta "control table"
+def process_with_checkpoint(files_to_process):
+    # Read last checkpoint from control table
+    control_df = spark.read.table("processing_control")
+    last_processed = control_df.select("last_file").first()[0]
+    
+    # Resume from where we left off
+    remaining = [f for f in files_to_process if f > last_processed]
+    
+    for file_path in remaining:
+        df = spark.read.parquet(file_path)
+        process_and_write(df)
+        
+        # Update checkpoint
+        spark.sql(f"""
+            UPDATE processing_control 
+            SET last_file = '{file_path}', 
+                updated_at = current_timestamp()
+        """)
+```
 
 ---
 

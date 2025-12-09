@@ -15,6 +15,7 @@ Microsoft relies heavily on **Apache Spark** (via Azure Databricks & Synapse). T
 | [03-catalyst-optimizer.md](./03-catalyst-optimizer.md) | Query Optimization | Logical/Physical plans, explain() |
 | [04-file-formats-deep-dive.md](./04-file-formats-deep-dive.md) | Storage Formats | Parquet, Avro, ORC, Delta |
 | [05-debugging-oom-errors.md](./05-debugging-oom-errors.md) | Troubleshooting | OOM analysis, memory tuning |
+| [06-advanced-performance-optimization.md](./06-advanced-performance-optimization.md) | **Performance Master Guide** | SPAMS framework, all optimization techniques |
 
 ---
 

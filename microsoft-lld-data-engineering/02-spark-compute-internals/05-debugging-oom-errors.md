@@ -7,7 +7,7 @@
 
 ## Table of Contents
 1. [Concept Breakdown](#1-concept-breakdown)
-2. [Multiple Analogies](#2-multiple-analogies)
+2. [Analogy](#2-analogy-lead-data-engineers-daily-etl-pipeline)
 3. [Architecture & Design Variants](#3-architecture--design-variants)
 4. [Diagrams](#4-diagrams)
 5. [Real-Time Issues & Failure Modes](#5-real-time-issues--failure-modes)
@@ -180,58 +180,11 @@ PySpark creates a **dual-process model**:
 
 ---
 
-## 2. Multiple Analogies
+## 2. Analogy: Lead Data Engineer's Daily ETL Pipeline
 
-### Analogy 1: Airport Terminal Capacity (System Analogy)
+> The most practical way to understand OOM is through a real production scenario.
 
-Imagine an **airport terminal** with a fixed number of check-in counters and a central control tower.
-
-| Spark Concept | Airport Analogy |
-|---------------|-----------------|
-| **Driver** | Control Tower (coordinates all flights but small staff) |
-| **Executors** | Check-in Terminals (process passengers in parallel) |
-| **Partitions** | Flight queues (groups of passengers to process) |
-| **collect()** | All passengers must pass through control tower before leaving |
-| **Data Skew** | One flight has 500 passengers, others have 20 |
-| **OOM** | Terminal capacity exceeded, passengers spilling into hallways |
-
-**Driver OOM:** The control tower tries to interview every single passenger (10 million people) instead of just sampling.
-
-**Executor OOM:** Terminal 3 gets a 747 full of passengers while other terminals get small planes. Terminal 3 is overwhelmed.
-
-**The Fix:** Route passengers efficiently (repartition), sample at control tower (limit()), or open more check-in counters (more partitions for skewed flights).
-
----
-
-### Analogy 2: Git Repository Merge (Software Analogy)
-
-Think of Spark operations like **Git branch merging** in a monorepo.
-
-| Spark Concept | Git Analogy |
-|---------------|-------------|
-| **Shuffle** | Merge operation requiring all branches to be fetched |
-| **Partition** | A single developer's working directory |
-| **Data Skew** | One developer made 50K commits, others made 100 |
-| **Executor Memory** | Developer's local disk space |
-| **OOM** | `fatal: Out of memory, malloc failed` during merge |
-
-**The Problem:**
-```bash
-# Normal merge - small changes per branch
-git merge feature/small-change  # Works fine
-
-# Skewed merge - one massive branch
-git merge feature/giant-refactor  # 50K files changed
-# fatal: Out of memory at line X
-```
-
-**The Solution:** Break the giant branch into smaller, incremental PRs (repartition the data), or merge in batches (increase partition count).
-
----
-
-### Analogy 3: Lead Data Engineer's Daily ETL Pipeline (Day-to-Day Analogy)
-
-You're a Lead DE running a daily ETL pipeline that joins:
+You're a **Lead DE** running a daily ETL pipeline that joins:
 - **Fact table:** 10TB of daily transactions
 - **Dimension table:** 50MB customer lookup
 
@@ -259,7 +212,16 @@ You're a Lead DE running a daily ETL pipeline that joins:
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key Learnings from this analogy:**
+### Mapping to OOM Concepts
+
+| What Happened | OOM Concept | Fix Applied |
+|---------------|-------------|-------------|
+| 10x data volume | Partition size exceeded memory | Increase partition count |
+| "Amazon" orders dominated | Data skew → one executor overloaded | AQE skew join handling |
+| PagerDuty alert | Container killed by YARN | Better monitoring thresholds |
+
+### Key Learnings
+
 1. **Proactive monitoring** catches OOM before production failure
 2. **Data distribution analysis** prevents skew-related OOM
 3. **AQE** is your first defense, salting is your fallback
