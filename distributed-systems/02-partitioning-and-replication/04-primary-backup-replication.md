@@ -36,7 +36,7 @@ sequenceDiagram
     participant F1 as Follower 1
     participant F2 as Follower 2
     
-    C->>P: INSERT user 'Alice'
+    C->>P: INSERT user Alice
     P->>P: Write locally
     P->>F1: Replicate
     P->>F2: Replicate
@@ -46,6 +46,7 @@ sequenceDiagram
 ```
 
 **Properties**:
+
 - ✅ Strong consistency (all replicas in sync)
 - ✅ No data loss on primary failure
 - ❌ Higher latency (wait for all ACKs)
@@ -60,7 +61,7 @@ sequenceDiagram
     participant F1 as Follower 1
     participant F2 as Follower 2
     
-    C->>P: INSERT user 'Alice'
+    C->>P: INSERT user Alice
     P->>P: Write locally
     P->>C: Commit Success
     
@@ -71,6 +72,7 @@ sequenceDiagram
 ```
 
 **Properties**:
+
 - ✅ Lower latency
 - ✅ Higher availability
 - ❌ Followers may lag (replication lag)
@@ -92,6 +94,7 @@ graph LR
 ```
 
 **Causes**:
+
 - Network latency
 - Follower overload
 - Long-running queries on followers
@@ -185,23 +188,25 @@ If primary crashes before replicating recent writes → those writes are lost.
 ```mermaid
 graph TB
     subgraph "What Happened"
-        1[1. Network blip]
-        2[2. Orchestrator promotes replica]
-        3[3. Topology update fails]
-        4[4. Old primary comes back]
-        5[5. TWO PRIMARIES!]
-        6[6. 24h to recover]
+        Step1[1. Network blip]
+        Step2[2. Orchestrator promotes replica]
+        Step3[3. Topology update fails]
+        Step4[4. Old primary comes back]
+        Step5[5. TWO PRIMARIES!]
+        Step6[6. 24h to recover]
     end
     
-    1 --> 2 --> 3 --> 4 --> 5 --> 6
+    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6
 ```
 
-**Root Cause**: 
+**Root Cause**:
+
 - Orchestrator (automated failover tool) promoted a read replica
 - Original primary came back online
 - Both accepting writes → data divergence
 
 **Lessons**:
+
 1. Test failover procedures regularly
 2. Have clear fencing mechanisms
 3. Understand your replication lag SLA

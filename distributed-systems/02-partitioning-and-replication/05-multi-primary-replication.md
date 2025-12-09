@@ -49,13 +49,13 @@ sequenceDiagram
     participant P2 as Primary 2
     participant C2 as Client 2
     
-    C1->>P1: SET name = 'Alice'
-    C2->>P2: SET name = 'Bob'
+    C1->>P1: SET name = Alice
+    C2->>P2: SET name = Bob
     
     Note over P1,P2: Both writes accepted!
     
-    P1->>P2: Sync: name = 'Alice'
-    P2->>P1: Sync: name = 'Bob'
+    P1->>P2: Sync: name = Alice
+    P2->>P1: Sync: name = Bob
     
     Note over P1,P2: CONFLICT!<br/>Which value wins?
 ```
@@ -68,8 +68,8 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    W1[Write: name='Alice'<br/>timestamp: 100] 
-    W2[Write: name='Bob'<br/>timestamp: 105]
+    W1[Write: name=Alice<br/>timestamp: 100] 
+    W2[Write: name=Bob<br/>timestamp: 105]
     
     W1 --> Conflict{Conflict}
     W2 --> Conflict
@@ -80,12 +80,14 @@ graph LR
 ```
 
 **Implementation**:
+
 ```python
 def resolve(write1, write2):
     return write1 if write1.timestamp > write2.timestamp else write2
 ```
 
 **Problems**:
+
 - Clock skew can cause "earlier" writes to win
 - Silent data loss — user's write disappears
 
@@ -127,6 +129,7 @@ graph TB
 ```
 
 **Example**: CRDTs (Conflict-free Replicated Data Types)
+
 - **G-Counter**: Only grows, merge = take max from each node
 - **PN-Counter**: Track increments and decrements separately
 - **LWW-Register**: Last-write-wins for single values
@@ -172,6 +175,7 @@ graph TB
 ```
 
 **Cassandra approach**:
+
 1. Writes go to multiple nodes with timestamps
 2. On read, coordinator queries replicas
 3. Latest timestamp wins

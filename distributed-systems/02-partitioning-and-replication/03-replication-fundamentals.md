@@ -20,6 +20,7 @@ graph TB
 ```
 
 **Benefits**:
+
 | Benefit | Description |
 |---------|-------------|
 | **Availability** | System continues if nodes fail |
@@ -165,7 +166,7 @@ graph LR
         Async[Asynchronous<br/>Eventual consistency<br/>Lower latency]
     end
     
-    Sync ---|Pick your trade-off|--- Async
+    Sync -- "Pick your trade-off" --- Async
 ```
 
 | Property | Synchronous | Asynchronous |
@@ -181,6 +182,7 @@ graph LR
 ## 🔥 Real-World Incident: GitHub 2018 Outage
 
 **What happened**:
+
 1. Network partition isolated primary MySQL
 2. Cluster promoted a replica to primary
 3. Old primary came back — had writes not yet replicated!

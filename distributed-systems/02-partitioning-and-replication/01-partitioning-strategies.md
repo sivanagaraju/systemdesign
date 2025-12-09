@@ -24,6 +24,7 @@ graph TB
 ```
 
 **Benefits**:
+
 - **Scalability**: Handle more data than fits on one machine
 - **Performance**: Parallel processing across nodes
 - **Cost**: Use commodity hardware instead of expensive servers
@@ -69,6 +70,7 @@ graph TB
 ```
 
 ### Use Cases
+
 - **Separate hot and cold data**: Frequently accessed vs rarely accessed columns
 - **Different storage needs**: BLOBs in object storage, structured data in RDBMS
 - **Microservices**: Each service owns its data
@@ -133,6 +135,7 @@ graph LR
 ```
 
 **Good Partition Keys**:
+
 | Key | Why Good |
 |-----|----------|
 | `user_id` | Evenly distributed, queries usually include it |
@@ -140,6 +143,7 @@ graph LR
 | `region` | Geographic queries, data locality |
 
 **Bad Partition Keys**:
+
 | Key | Why Bad |
 |-----|---------|
 | `created_at` | Hot spots (all new data in one shard) |
@@ -167,6 +171,7 @@ graph TB
 ```
 
 **Key Decisions**:
+
 - Partition key: `user_id` (most queries are user-centric)
 - Generated IDs include shard ID for routing
 - Cross-shard queries minimized by design
@@ -185,7 +190,7 @@ sequenceDiagram
     participant S2 as Shard 2
     participant S3 as Shard 3
     
-    C->>R: SELECT * WHERE age > 25
+    C->>R: SELECT * WHERE age &gt; 25
     R->>S1: Query
     R->>S2: Query
     R->>S3: Query

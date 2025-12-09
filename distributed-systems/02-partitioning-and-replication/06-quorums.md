@@ -39,7 +39,7 @@ graph TB
         Rd[Read] -->|Quorum: 2| R1
         Rd --> R3
         
-        Note[At least one node<br/>has the latest write!]
+        NoteNode[At least one node<br/>has the latest write!]
     end
 ```
 
@@ -48,6 +48,7 @@ graph TB
 ## 📐 The Quorum Formula
 
 For a system with **N** replicas:
+
 - **W** = Write quorum (minimum nodes to write to)
 - **R** = Read quorum (minimum nodes to read from)
 
@@ -58,9 +59,9 @@ This guarantees **at least one node** overlaps between read and write sets.
 ```mermaid
 graph LR
     subgraph "N=3, W=2, R=2"
-        WS[Write Set: {1,2}]
-        RS[Read Set: {2,3}]
-        OL[Overlap: {2}]
+        WS[Write Set: (1,2)]
+        RS[Read Set: (2,3)]
+        OL[Overlap: (2)]
     end
     
     WS --> OL
@@ -100,7 +101,7 @@ graph TB
     Rd --> R4
     Rd --> R5
     
-    Note[R3 is in both sets!<br/>Read sees latest write]
+    NoteNode[R3 is in both sets!<br/>Read sees latest write]
     
     style R3 fill:#4caf50,color:#fff
 ```
@@ -150,7 +151,7 @@ graph TB
     W --> SP3
     W --> Temp
     
-    Note[When P1 recovers,<br/>data is 'hinted handoff']
+    NoteNode[When P1 recovers,<br/>data is hinted handoff]
 ```
 
 **Hinted Handoff**: Temp node holds data temporarily, transfers when primary recovers.
@@ -174,6 +175,7 @@ graph TB
 ```
 
 **DynamoDB offers choice per operation**:
+
 - `ConsistentRead: false` → Eventually consistent (faster, cheaper)
 - `ConsistentRead: true` → Strongly consistent (slower, ensures latest)
 
