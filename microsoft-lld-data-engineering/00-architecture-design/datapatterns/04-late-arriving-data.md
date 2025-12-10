@@ -1,10 +1,46 @@
 # Late-Arriving Data Handling
+
 ![alt text](./images/LateArrivingData.png)
-> **THE critical scenario** - Products not arrived, but Orders came
 
-## The Core Question
+> **Senior Staff / Principal Interview Scenario**
+>
+> "Orders data arrived, but the product_id doesn't exist in Products dimension yet. What do you do?"
 
-*"Orders data arrived, but the product_id doesn't exist in Products dimension yet. What do you do?"*
+---
+
+## 🔴 The Real-World Scenario
+
+> *"You're a Lead DE at an e-commerce company. On Monday morning, you discover that 15,000 orders from the weekend show `product_name = NULL` in reports. Investigation reveals: new products were launched Friday night, but the Products dimension table update job failed. The Orders table has product_ids that don't exist in Products yet."*
+
+**Business Impact**:
+
+- Dashboard shows incomplete sales data
+- Revenue reports are inaccurate
+- Product managers can't see performance of new products
+
+**Root Cause**: **Late-arriving dimension data** - Fact table references dimension keys that don't exist yet.
+
+---
+
+## 📚 Key Terminology
+
+| Term | Definition | Example |
+|:-----|:-----------|:--------|
+| **Late-Arriving Dimension** | Dimension record arrives AFTER fact records that reference it | Product added after orders reference it |
+| **Late-Arriving Fact** | Fact record arrives after its time window closed | Mobile order synced 3 days late |
+| **Watermark** | Point in time that defines "too late" cutoff | `watermark = max_event_time - 10min` |
+| **Allowed Lateness** | Grace period for events after watermark | Accept events up to 2 hours past watermark |
+| **Unknown Member** | Placeholder dimension record for unmatched keys | `product_id = -1, name = 'Unknown'` |
+| **Staging Table** | Holding area for unmatched records awaiting retry | `/staging/unmatched_orders` |
+
+---
+
+## ⚖️ Two Distinct Problems
+
+| Problem | Description | Solution |
+|:--------|:------------|:---------|
+| **Late-Arriving Dimension** | Fact arrives before dimension exists | Staging + Retry OR Unknown Member |
+| **Late-Arriving Fact** | Event arrives after processing window closed | Watermark + Allowed Lateness |
 
 ---
 
@@ -17,24 +53,24 @@ gantt
     axisFormat  %H:%M
     
     section Timelines
-    Wall Clock (Processing Time) :active, current, 10:00, 30m
-    Event Time (Data Arrival)    :crit, data, 10:00, 30m
+    Wall Clock - Processing Time :active, proc_time, 10:00, 30m
+    Event Time - Data Arrival    :crit, data_arr, 10:00, 30m
     
     section Events
-    On-Time Event (10:05)       :done,    event1, 10:05, 1m
-    Late Buffered Event (10:02) :active,  event2, 10:15, 1m
-    Dropped Event (09:55)       :crit,    event3, 10:20, 1m
+    On-Time Event 1005           :done,    event1, 10:05, 1m
+    Late Buffered Event 1002     :active,  event2, 10:15, 1m
+    Dropped Event 0955           :crit,    event3, 10:20, 1m
     
     section Watermark
-    Watermark (Delay 10m)       :milestone, 10:10, 0m
+    Watermark - Delay 10m        :milestone, 10:10, 0m
 ```
 
 ```mermaid
-graph LR
+flowchart LR
     subgraph Stream_Processing ["Stream Processing Window"]
         direction TB
-        Now[("Current Processing Time: 10:15")]
-        WM[("Watermark (T-10m): 10:05")]
+        Now["Current Processing Time: 10:15"]
+        WM["Watermark (T-10m): 10:05"]
         
         style Now fill:#e1f5fe
         style WM fill:#ffebee,stroke:#c62828
@@ -43,12 +79,12 @@ graph LR
     end
     
     subgraph Incoming_Events ["Incoming Events Queue"]
-        E1[Event Time: 10:14] --> |"Ahead of Watermark"| Buffer[State Store Buffer]
-        E2[Event Time: 10:06] --> |"Ahead of Watermark"| Buffer
-        E3[Event Time: 10:04] --> |"Behind Watermark"| Drop[🗑️ Dropped / Ignored]
+        E1["Event Time: 10:14"] --> |"Ahead of Watermark"| Buffer["State Store Buffer"]
+        E2["Event Time: 10:06"] --> |"Ahead of Watermark"| Buffer
+        E3["Event Time: 10:04"] --> |"Behind Watermark"| Drop["🗑️ Dropped / Ignored"]
     end
     
-    Buffer --> Agg[Result Table]
+    Buffer --> Agg["Result Table"]
 ```
 
 ---

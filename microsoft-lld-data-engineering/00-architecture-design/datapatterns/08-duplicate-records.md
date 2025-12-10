@@ -1,23 +1,61 @@
 # Duplicate Records Handling
 
-> **When the same record arrives multiple times**
+> **Senior Staff / Principal Interview Scenario**
+>
+> "Your source system sends the same order twice. How do you prevent duplicates in your data lake?"
 
-## The Core Problem
+---
 
-*"Your source system sends the same order twice. How do you prevent duplicates in your data lake?"*
+## 🔴 The Real-World Scenario
 
-```
-Source System Issues:              What You Receive:
-───────────────────────            ───────────────────────
-- Network retry                    Order 123 at 10:00
-- Producer retry                   Order 123 at 10:01  ← DUPLICATE!
-- At-least-once delivery           Order 123 at 10:02  ← DUPLICATE!
-- Bug in source                    Order 124 at 10:03
-```
+> *"It's Friday 4 PM. Finance reports that revenue for today is showing $2.3M, but it should be ~$1.5M. Investigation reveals: a network blip caused the payment API to retry, and 30% of transactions were processed twice. Each duplicate added to the revenue total."*
+
+**Business Impact**:
+
+- Revenue reports off by millions
+- Inventory counts incorrect
+- Customer charged twice (refund nightmare)
+
+**Root Cause**: **At-least-once delivery** without idempotent processing creates duplicates.
+
+---
+
+## 📚 Key Terminology
+
+| Term | Definition | Example |
+|:-----|:-----------|:--------|
+| **Deduplication** | Process of identifying and removing duplicate records | Keep only one `order_id = 123` |
+| **Dedup Key** | Column(s) that uniquely identify a logical record | `order_id` or `order_id + event_time` |
+| **At-Least-Once** | Delivery guarantee that may produce duplicates | Kafka default |
+| **Exactly-Once** | Delivery guarantee with no duplicates | Kafka transactions + idempotent sink |
+| **Idempotent Operation** | Operation safe to apply multiple times | MERGE/upsert |
+| **Stateful Dedup** | Remembering seen keys in streaming state | Requires watermark for bounded state |
+
+---
+
+## 🔬 Deep-Dive: Why Duplicates Happen
+
+| Source | Why It Happens | Frequency |
+|:-------|:---------------|:----------|
+| **Network Retry** | Client didn't receive ACK, retries | Common |
+| **Producer Retry** | Kafka producer retries on timeout | Common |
+| **At-Least-Once** | Designed to never lose, may duplicate | By design |
+| **Source Bug** | Application sends same event twice | Occasional |
+| **Reprocessing** | Pipeline replays from checkpoint | Intentional |
+| **File Re-upload** | Same file uploaded twice | Human error |
 
 ---
 
 ## 🏗️ Deduplication Architecture
+
+```text
+Source Duplicates:              What You Receive:
+───────────────────────         ───────────────────────
+- Network retry                 Order 123 at 10:00
+- Producer retry                Order 123 at 10:01  ← DUPLICATE!
+- At-least-once delivery        Order 123 at 10:02  ← DUPLICATE!
+- Bug in source                 Order 124 at 10:03
+```
 
 ```mermaid
 flowchart TD
